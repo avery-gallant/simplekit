@@ -4,3 +4,4 @@ export * from "./container";
 export * from "./button";
 export * from "./textfield";
 export * from "./label";
+export * from "./shapes";

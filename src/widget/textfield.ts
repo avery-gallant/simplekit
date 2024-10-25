@@ -193,3 +193,34 @@ export class SKTextfield extends SKElement {
     return `SKTextfield '${this.text}'`;
   }
 }
+
+export class SKNumberfield extends SKTextfield {
+  constructor({ text = "", fill = "white", ...elementProps }: SKTextfieldProps = {}) {
+    super(elementProps);
+    this.padding = Style.textPadding;
+    this.text = text;
+    this.fill = fill;
+  }
+
+  protected _text = "";
+  get text() {
+    return this._text;
+  }
+  set text(t: string) {
+    if (!isNaN(Number(t)))
+      this._text = t;
+    this.setMinimalSize(this.width, this.height);
+  }
+
+  protected applyEdit(text: string, key: string): string {
+    if (key == "Backspace") {
+      return text.slice(0, -1);
+    } else if (key.length == 1 && !isNaN(Number(key))) {
+      return text + key;
+    } else return text;
+  }
+
+  public toString(): string {
+    return `SKNumberfield '${this.text}'`;
+  }
+}

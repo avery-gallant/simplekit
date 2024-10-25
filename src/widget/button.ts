@@ -4,6 +4,7 @@ import { Style } from "./style";
 import { SKEvent, SKMouseEvent } from "../events";
 
 import { requestMouseFocus } from "../dispatch";
+import { SKCirc, SKLine, SKRect, SKShape} from "./shapes";
 
 export type SKButtonProps = SKElementProps & { text?: string };
 
@@ -22,6 +23,27 @@ export class SKButton extends SKElement {
   }
 
   state: "idle" | "hover" | "down" = "idle";
+  protected _toggle:boolean = false;
+  protected _pressed:boolean = false;
+
+  get toggle() {
+    return this._toggle;
+  }
+  set toggle(t: boolean) {
+    this._toggle = t;
+    if (!t){
+      this._pressed=false;
+    }
+  }
+
+  get pressed() {
+    return this._pressed;
+  }
+
+  set pressed(b: boolean) {
+    if(this._toggle)
+      this._pressed = b;
+  }
 
   protected _text = "";
   get text() {
@@ -29,8 +51,26 @@ export class SKButton extends SKElement {
   }
   set text(t: string) {
     this._text = t;
-    // console.log(`SKButton text = ${this.text} ${this.width} ${this.height}`);
     this.setMinimalSize(this.width, this.height);
+  }
+
+  protected _icon?:SKShape = undefined;
+  set icon(i:string) {
+    switch (i){
+      case "rect":
+        this._icon  = new SKRect({x:this.width/2-10+this.x, y:this.height/2-10+this.y});
+          break;
+      case "circ":
+        this._icon  = new SKCirc({x:this.width/2-10+this.x, y:this.height/2-10+this.y});
+          break;
+      case "line":
+          this._icon  = new SKLine({x:this.width/2-10+this.x, y:this.height/2-10+this.y});
+          break;
+    }
+    this._icon.width = 20;
+    this._icon.height = 20;
+    this._icon.lineWidth=3;
+    
   }
 
   protected _radius = 4;
@@ -58,11 +98,14 @@ export class SKButton extends SKElement {
     return this._fontColour;
   }
 
-  protected _highlightColour = Style.highlightColour;
-  set highlightColour(hc: string){
-    this._highlightColour = hc;
+  protected _hoverColour = Style.hoverColour;
+  set hoverColour(hc: string){
+    this._hoverColour = hc;
   }
-
+  protected _downColour = Style.downColour;
+  set downColour(hc: string){
+    this._downColour = hc;
+  }
 
   setMinimalSize(width?: number, height?: number) {
     width = width || this.width;
@@ -88,17 +131,35 @@ export class SKButton extends SKElement {
     switch (me.type) {
       case "mousedown":
         this.state = "down";
+        if (this._toggle){
+          this._pressed = !this._pressed;
+        }
         requestMouseFocus(this);
         return true;
         break;
       case "mouseup":
         this.state = "hover";
         // return true if a listener was registered
-        return this.sendEvent({
-          source: this,
-          timeStamp: me.timeStamp,
-          type: "action",
-        } as SKEvent);
+        if(!this._toggle)
+          return this.sendEvent({
+            source: this,
+            timeStamp: me.timeStamp,
+            type: "action",
+          } as SKEvent);
+        if(this._pressed)
+          return this.sendEvent({
+            source: this,
+            timeStamp: me.timeStamp,
+            type: "on",
+          } as SKEvent);
+        
+        else
+          return this.sendEvent({
+            source: this,
+            timeStamp: me.timeStamp,
+            type: "off",
+          } as SKEvent);
+        
         break;
       case "mouseenter":
         this.state = "hover";
@@ -123,19 +184,29 @@ export class SKButton extends SKElement {
     gc.translate(this.margin, this.margin);
 
     // thick highlight rect
-    if (this.state == "hover" || this.state == "down") {
-      gc.beginPath();
-      gc.roundRect(this.x, this.y, w, h, this.radius);
-      gc.strokeStyle = this._highlightColour;
-      gc.lineWidth = 8;
-      gc.stroke();
-    }
-
+    
     // normal background
     gc.beginPath();
-    gc.roundRect(this.x, this.y, w, h, this.radius);
-    gc.fillStyle =
-      this.state == "down" ? this._highlightColour : this.fill;
+    if (this.state == "down"){
+      gc.roundRect(this.x+2, this.y+2, w-3, h-3, this.radius);
+    }
+    else{
+      gc.roundRect(this.x, this.y, w, h, this.radius);
+    }
+    
+    
+    if (this.state == "hover") {
+      gc.fillStyle = this._hoverColour;
+    }
+    else if (this.state == "down") {
+      gc.fillStyle = this._downColour;
+    }
+    else{
+      if (this._pressed)
+        gc.fillStyle = this._downColour;
+      else
+        gc.fillStyle = this.fill;
+    }
     gc.strokeStyle = this.border;
     // change fill to show down state
     gc.lineWidth = this.state == "down" ? 4 : 2;
@@ -151,6 +222,8 @@ export class SKButton extends SKElement {
     gc.fillText(this.text, this.x + w / 2, this.y + h / 2);
 
     gc.restore();
+
+    this._icon?.draw(gc);
 
     // element draws debug viz if flag is set
     super.draw(gc);
